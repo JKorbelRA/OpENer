@@ -1,15 +1,22 @@
-/*
- * random.cpp
+/*******************************************************************************
+ * Copyright (c) 2017, Rockwell Automation, Inc.
+ * All rights reserved.
  *
- *  Created on: Dec 16, 2013
- *      Author: mmm
- */
+ ******************************************************************************/
 
 #include "random.h"
 
-Random* random_new(setSeedfn pa_fnpSetSeed, getNextUInt32fn pa_fnGetNextUInt32)
-{
-	Random* out = malloc(sizeof(Random));
-	*out = (Random){.setSeed = pa_fnpSetSeed, .getNextUInt32 = pa_fnGetNextUInt32};
-	return out;
+#include <stdlib.h>
+
+Random *RandomNew(SetSeed set_seed,
+                  GetNextUInt32 get_next_uint32) {
+  Random *random = malloc( sizeof(Random) );
+  *random =
+    (Random ) { .set_seed = set_seed, .get_next_uint32 = get_next_uint32 };
+  return random;
+}
+
+void RandomDelete(Random **random) {
+  free(*random);
+  *random = NULL;
 }

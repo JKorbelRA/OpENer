@@ -1,4 +1,3 @@
-
 #######################################
 # Add common includes                 #
 #######################################
@@ -9,4 +8,8 @@ opener_common_includes()
 #######################################
 opener_platform_support("INCLUDES")
 
-add_library( SAMPLE_APP main.c )
+set( EthernetEncapsulationTestSrc endianconvtest.cpp )
+
+include_directories( ${SRC_DIR}/enet_encap )
+
+add_library( EthernetEncapsulationTest ${EthernetEncapsulationTestSrc} )

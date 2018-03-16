@@ -1,207 +1,196 @@
 /*******************************************************************************
  * Copyright (c) 2009, Rockwell Automation, Inc.
- * All rights reserved. 
+ * All rights reserved.
  *
  ******************************************************************************/
-#include <string.h>    /*needed for memcpy */
+
+#include <string.h>
+#include <stdbool.h>
+
 #include "cipassembly.h"
+
 #include "cipcommon.h"
 #include "opener_api.h"
 #include "trace.h"
 #include "cipconnectionmanager.h"
 
-/*! \brief Implementation of the SetAttributeSingle CIP service for Assembly
+/** @brief Implementation of the SetAttributeSingle CIP service for Assembly
  *          Objects.
  *  Currently only supports Attribute 3 (CIP_BYTE_ARRAY) of an Assembly
  */
-EIP_STATUS
-setAssemblyAttributeSingle(S_CIP_Instance *pa_pstInstance,
-    S_CIP_MR_Request *pa_pstMRRequest, S_CIP_MR_Response *pa_pstMRResponse);
+EipStatus SetAssemblyAttributeSingle(
+  CipInstance *const instance,
+  CipMessageRouterRequest *const message_router_request,
+  CipMessageRouterResponse *const message_router_response,
+  struct sockaddr *originator_address,
+  const int encapsulation_session);
 
-S_CIP_Class *
-createAssemblyClass()
-{
-  S_CIP_Class *pstAssemblyClass;
+/** @brief Constructor for the assembly object class
+ *
+ *  Creates an initializes Assembly class or object instances
+ *  @return Pointer to the created Assembly object
+ */
+CipClass *CreateAssemblyClass(void) {
   /* create the CIP Assembly object with zero instances */
-  pstAssemblyClass = createCIPClass(CIP_ASSEMBLY_CLASS_CODE, 0, /* # class attributes*/
-  0, /* 0 as the assembly object should not have a get_attribute_all service*/
-  0, /* # class services*/
-  1, /* # instance attributes*/
-  0, /* 0 as the assembly object should not have a get_attribute_all service*/
-  1, /* # instance services*/
-  0, /* # instances*/
-  "assembly", 2 /* Revision, according to the CIP spec currently this has to be 2 */
-  );
-  if (NULL != pstAssemblyClass)
-    {
-      insertService(pstAssemblyClass, CIP_SET_ATTRIBUTE_SINGLE,
-          &setAssemblyAttributeSingle, "SetAssemblyAttributeSingle");
-    }
+  CipClass *assembly_class = CreateCipClass(kCipAssemblyClassCode, 0, /* # class attributes*/
+                                            7, /* # highest class attribute number*/
+                                            1, /* # class services*/
+                                            2, /* # instance attributes*/
+                                            4, /* # highest instance attribute number*/
+                                            2, /* # instance services*/
+                                            0, /* # instances*/
+                                            "assembly", /* name */
+                                            2, /* Revision, according to the CIP spec currently this has to be 2 */
+                                            NULL); /* # function pointer for initialization*/
+  if (NULL != assembly_class) {
+    InsertService(assembly_class, kGetAttributeSingle, &GetAttributeSingle,
+                  "GetAttributeSingle");
+    InsertService(assembly_class, kSetAttributeSingle,
+                  &SetAssemblyAttributeSingle, "SetAssemblyAttributeSingle");
+  }
 
-  return pstAssemblyClass;
+  return assembly_class;
 }
 
-EIP_STATUS
-CIP_Assembly_Init()
-{ /* create the CIP Assembly object with zero instances */
-  return createAssemblyClass() ? EIP_OK : EIP_ERROR;
+/** @brief create the CIP Assembly object with zero instances
+ *
+ */
+EipStatus CipAssemblyInitialize(void) {
+  return ( NULL != CreateAssemblyClass() ) ? kEipStatusOk : kEipStatusError;
 }
 
-void
-shutdownAssemblies(void)
-{
-  S_CIP_Class *pstAssemblyClass = getCIPClass(CIP_ASSEMBLY_CLASS_CODE);
-  S_CIP_attribute_struct *pstAttribute;
-  S_CIP_Instance *pstRunner;
+void ShutdownAssemblies(void) {
+  CipClass *assembly_class = GetCipClass(kCipAssemblyClassCode);
 
-  if (NULL != pstAssemblyClass)
-    {
-      pstRunner = pstAssemblyClass->pstInstances;
-      while (NULL != pstRunner)
-        {
-          pstAttribute = getAttribute(pstRunner, 3);
-          if (NULL != pstAttribute)
-            {
-              IApp_CipFree(pstAttribute->pt2data);
-            }
-          pstRunner = pstRunner->pstNext;
-        }
+  if (NULL != assembly_class) {
+    CipInstance *instance = assembly_class->instances;
+    while (NULL != instance) {
+      CipAttributeStruct *attribute = GetCipAttribute(instance, 3);
+      if (NULL != attribute) {
+        CipFree(attribute->data);
+      }
+      instance = instance->next;
     }
+  }
 }
 
-S_CIP_Instance *
-createAssemblyObject(EIP_UINT32 pa_nInstanceID, EIP_BYTE * pa_data,
-    EIP_UINT16 pa_datalength)
-{
-  S_CIP_Class *pstAssemblyClass;
-  S_CIP_Instance *pstAssemblyInstance;
-  S_CIP_Byte_Array *stAssemblyByteArray;
-
-  if (NULL == (pstAssemblyClass = getCIPClass(CIP_ASSEMBLY_CLASS_CODE)))
-    {
-      if (NULL == (pstAssemblyClass = createAssemblyClass()))
-        {
-          return NULL;
-        }
+CipInstance *CreateAssemblyObject(const EipUint32 instance_id,
+                                  EipByte *const data,
+                                  const EipUint16 data_length) {
+  CipClass *assembly_class = NULL;
+  if ( NULL == ( assembly_class = GetCipClass(kCipAssemblyClassCode) ) ) {
+    if ( NULL == ( assembly_class = CreateAssemblyClass() ) ) {
+      return NULL;
     }
+  }
 
-  pstAssemblyInstance = addCIPInstance(pstAssemblyClass, pa_nInstanceID); /* add instances (always succeeds (or asserts))*/
+  CipInstance *const instance = AddCIPInstance(assembly_class, instance_id);  /* add instances (always succeeds (or asserts))*/
 
-  if ((stAssemblyByteArray = (S_CIP_Byte_Array *) IApp_CipCalloc(1,
-      sizeof(S_CIP_Byte_Array))) == NULL)
-    {
-      return NULL; /*TODO remove assembly instance in case of error*/
-    }
+  CipByteArray *const assembly_byte_array = (CipByteArray *) CipCalloc(
+    1, sizeof(CipByteArray) );
+  if (assembly_byte_array == NULL) {
+    return NULL; /*TODO remove assembly instance in case of error*/
+  }
 
-  stAssemblyByteArray->len = pa_datalength;
-  stAssemblyByteArray->Data = pa_data;
-  insertAttribute(pstAssemblyInstance, 3, CIP_BYTE_ARRAY, stAssemblyByteArray, CIP_ATTRIB_SETGETABLE);
+  assembly_byte_array->length = data_length;
+  assembly_byte_array->data = data;
+  InsertAttribute(instance, 3, kCipByteArray, assembly_byte_array,
+                  kSetAndGetAble);
+  /* Attribute 4 Number of bytes in Attribute 3 */
+  InsertAttribute(instance, 4, kCipUint, &(assembly_byte_array->length),
+                  kGetableSingle);
 
-  return pstAssemblyInstance;
+  return instance;
 }
 
-EIP_STATUS
-notifyAssemblyConnectedDataReceived(S_CIP_Instance * pa_pstInstance,
-    EIP_UINT8 * pa_pnData, EIP_UINT16 pa_nDataLength)
-{
-  S_CIP_Byte_Array *p;
-
+EipStatus NotifyAssemblyConnectedDataReceived(CipInstance *const instance,
+                                              const EipUint8 *const data,
+                                              const EipUint16 data_length) {
   /* empty path (path size = 0) need to be checked and taken care of in future */
   /* copy received data to Attribute 3 */
-  p = (S_CIP_Byte_Array *) pa_pstInstance->pstAttributes->pt2data;
-  if (p->len != pa_nDataLength)
-    {
-      OPENER_TRACE_ERR("wrong amount of data arrived for assembly object\n");
-      return EIP_ERROR; /*TODO question should we notify the application that wrong data has been recieved???*/
-    }
-  else
-    {
-      memcpy(p->Data, pa_pnData, pa_nDataLength);
-      /* call the application that new data arrived */
-    }
+  CipByteArray *assembly_byte_array = (CipByteArray *) instance->attributes
+                                      ->data;
+  if (assembly_byte_array->length != data_length) {
+    OPENER_TRACE_ERR("wrong amount of data arrived for assembly object\n");
+    return kEipStatusError; /*TODO question should we notify the application that wrong data has been received???*/
+  } else {
+    memcpy(assembly_byte_array->data, data, data_length);
+    /* call the application that new data arrived */
+  }
 
-  return IApp_AfterAssemblyDataReceived(pa_pstInstance);
+  return AfterAssemblyDataReceived(instance);
 }
 
-EIP_STATUS
-setAssemblyAttributeSingle(S_CIP_Instance *pa_pstInstance,
-    S_CIP_MR_Request *pa_pstMRRequest, S_CIP_MR_Response *pa_pstMRResponse)
-{
+EipStatus SetAssemblyAttributeSingle(
+  CipInstance *const instance,
+  CipMessageRouterRequest *const message_router_request,
+  CipMessageRouterResponse *const message_router_response,
+  struct sockaddr *originator_address,
+  const int encapsulation_session) {
+  OPENER_TRACE_INFO(" setAttribute %d\n",
+                    message_router_request->request_path.attribute_number);
 
-  
-  EIP_UINT8 *acReqData;
-  S_CIP_attribute_struct *p; 
-  OPENER_TRACE_INFO(" setAttribute %d\n", pa_pstMRRequest->RequestPath.AttributNr);
-  
-  acReqData = pa_pstMRRequest->Data;
+  const EipUint8 *const router_request_data = message_router_request->data;
 
-  pa_pstMRResponse->DataLength = 0;
-  pa_pstMRResponse->ReplyService = (0x80 | pa_pstMRRequest->Service);
-  pa_pstMRResponse->GeneralStatus = CIP_ERROR_ATTRIBUTE_NOT_SUPPORTED;
-  pa_pstMRResponse->SizeofAdditionalStatus = 0;
+  message_router_response->data_length = 0;
+  message_router_response->reply_service = (0x80
+                                            | message_router_request->service);
+  message_router_response->general_status = kCipErrorAttributeNotSupported;
+  message_router_response->size_of_additional_status = 0;
 
+  CipAttributeStruct *attribute = GetCipAttribute(
+    instance, message_router_request->request_path.attribute_number);
 
-  p = getAttribute(pa_pstInstance,
-      pa_pstMRRequest->RequestPath.AttributNr);
+  if ( (attribute != NULL)
+       && (3 == message_router_request->request_path.attribute_number) ) {
+    if (attribute->data != NULL) {
+      CipByteArray *data = (CipByteArray *) attribute->data;
 
-  if ((p != 0) && (3 == pa_pstMRRequest->RequestPath.AttributNr))
-    {
-      if (p->pt2data != 0)
-        {
-          S_CIP_Byte_Array * pacData = (S_CIP_Byte_Array *) p->pt2data;
+      /* TODO: check for ATTRIBUTE_SET/GETABLE MASK */
+      if ( true == IsConnectedOutputAssembly(instance->instance_number) ) {
+        OPENER_TRACE_WARN(
+          "Assembly AssemblyAttributeSingle: received data for connected output assembly\n\r");
+        message_router_response->general_status = kCipErrorAttributeNotSetable;
+      } else {
+        if (message_router_request->request_path_size < data->length) {
+          OPENER_TRACE_INFO(
+            "Assembly setAssemblyAttributeSingle: not enough data received.\r\n");
+          message_router_response->general_status = kCipErrorNotEnoughData;
+        } else {
+          if (message_router_request->request_path_size > data->length) {
+            OPENER_TRACE_INFO(
+              "Assembly setAssemblyAttributeSingle: too much data received.\r\n");
+            message_router_response->general_status = kCipErrorTooMuchData;
+          } else {
+            memcpy(data->data, router_request_data, data->length);
 
-          //TODO: check for ATTRIBUTE_SET/GETABLE MASK
-          if (true == isConnectedOutputAssembly(pa_pstInstance->nInstanceNr))
-            {
-              OPENER_TRACE_WARN("Assembly AssemblyAttributeSingle: received data for connected output assembly\n\r");
-              pa_pstMRResponse->GeneralStatus = CIP_ERROR_ATTRIBUTE_NOT_SETTABLE;
+            if (AfterAssemblyDataReceived(instance) != kEipStatusOk) {
+              /* punt early without updating the status... though I don't know
+               * how much this helps us here, as the attribute's data has already
+               * been overwritten.
+               *
+               * however this is the task of the application side which will
+               * take the data. In addition we have to inform the sender that the
+               * data was not ok.
+               */
+              message_router_response->general_status =
+                kCipErrorInvalidAttributeValue;
+            } else {
+              message_router_response->general_status = kCipErrorSuccess;
             }
-          else
-            {
-              if (pa_pstMRRequest->DataLength < pacData->len)
-                {
-                  OPENER_TRACE_INFO("Assembly setAssemblyAttributeSingle: not enough data received.\r\n");
-                  pa_pstMRResponse->GeneralStatus = CIP_ERROR_NOT_ENOUGH_DATA;
-                }
-              else
-                {
-                  if (pa_pstMRRequest->DataLength > pacData->len)
-                    {
-                      OPENER_TRACE_INFO("Assembly setAssemblyAttributeSingle: too much data received.\r\n");
-                      pa_pstMRResponse->GeneralStatus = CIP_ERROR_TOO_MUCH_DATA;
-                    }
-                  else
-                    {
-                      memcpy(pacData->Data, acReqData, pacData->len);
-
-                      if (IApp_AfterAssemblyDataReceived(pa_pstInstance)
-                          != EIP_OK)
-                        {
-                          /* punt early without updating the status... though I don't know
-                           * how much this helps us here, as the attribute's data has already
-                           * been overwritten.
-                           *
-                           * however this is the task of the application side which will
-                           * take the data. In addition we have to inform the sender that the
-                           * data was not ok.
-                           */
-                          pa_pstMRResponse->GeneralStatus
-                              = CIP_ERROR_INVALID_ATTRIBUTE_VALUE;
-                        }
-                      else
-                        {
-                          pa_pstMRResponse->GeneralStatus = CIP_ERROR_SUCCESS;
-                        }
-                    }
-                }
-            }
+          }
         }
-      else
-        {
-          /* the attribute was zero we are a heartbeat assembly */
-          pa_pstMRResponse->GeneralStatus = CIP_ERROR_TOO_MUCH_DATA;
-        }
+      }
+    } else {
+      /* the attribute was zero we are a heartbeat assembly */
+      message_router_response->general_status = kCipErrorTooMuchData;
     }
+  }
 
-  return EIP_OK_SEND;
+  if ( (attribute != NULL)
+       && (4 == message_router_request->request_path.attribute_number) ) {
+    message_router_response->general_status = kCipErrorAttributeNotSetable;
+  }
+
+  return kEipStatusOkSend;
 }

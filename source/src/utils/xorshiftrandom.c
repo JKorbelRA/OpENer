@@ -1,32 +1,28 @@
-/*
- * xorshiftrandom.c
+/*******************************************************************************
+ * Copyright (c) 2017, Rockwell Automation, Inc.
+ * All rights reserved.
  *
- *  Created on: Nov 28, 2013
- *      Author: mmm
- */
+ ******************************************************************************/
 
 #include "xorshiftrandom.h"
 
-static uint32_t nXorShiftSeed; /*! < File-global variable holding the current seed*/
+static uint32_t xor_shift_seed; /** < File-global variable holding the current seed*/
 
-void setXorShiftSeed(uint32_t pa_nSeed)
-{
-	nXorShiftSeed = pa_nSeed;
+void SetXorShiftSeed(uint32_t seed) {
+  xor_shift_seed = seed;
 }
 
-/*!
+/** @brief Pseudo-random number algorithm
  * The algorithm used to create the pseudo-random numbers.
  * Works directly on the file global variable
  */
-void calculateNextSeed(void)
-{
-	nXorShiftSeed ^= nXorShiftSeed << 13;
-	nXorShiftSeed ^= nXorShiftSeed >> 17;
-	nXorShiftSeed ^= nXorShiftSeed << 5;
+void CalculateNextSeed(void) {
+  xor_shift_seed ^= xor_shift_seed << 13;
+  xor_shift_seed ^= xor_shift_seed >> 17;
+  xor_shift_seed ^= xor_shift_seed << 5;
 }
 
-uint32_t nextXorShiftUInt32(void)
-{
-	calculateNextSeed();
-	return nXorShiftSeed;
+uint32_t NextXorShiftUint32(void) {
+  CalculateNextSeed();
+  return xor_shift_seed;
 }

@@ -8,13 +8,33 @@
 
 #include "typedefs.h"
 
+#define OPENER_SOCKET_WOULD_BLOCK WSAEWOULDBLOCK
 
-/*! Start a TCP/UDP listening socket, accept connections, receive data in select loop, call manageConnections periodically.
- *  @return status
- *          EIP_ERROR .. error
+typedef unsigned long socklen_t;
+
+EipStatus NetworkHandlerInitializePlatform(void);
+
+/** @brief Platform dependent code to close a socket
+ *
+ *  @param socket_handle The socket handle to be closed
  */
-EIP_STATUS NetworkHandler_Init(void);
-EIP_STATUS NetworkHandler_ProcessOnce(void);
-EIP_STATUS NetworkHandler_Finish(void);
+void CloseSocketPlatform(int socket_handle);
+
+int SetSocketToNonBlocking(int socket_handle);
+
+/** @brief This function shall return the current time in microseconds relative to epoch, and shall be implemented in a port specific networkhandler
+ *
+ *  @return Current time relative to epoch as MicroSeconds
+ */
+MicroSeconds GetMicroSeconds(void);
+
+/** @brief This function shall return the current time in milliseconds relative to epoch, and shall be implemented in a port specific networkhandler
+ *
+ *  @return Current time relative to epoch as MilliSeconds
+ */
+MilliSeconds GetMilliSeconds(void);
+
+int SetQosOnSocket(int socket,
+                    CipUsint qos_value);
 
 #endif /*NETWORKHANDLER_H_*/

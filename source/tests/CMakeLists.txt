@@ -11,17 +11,26 @@ add_test_includes()
 ###################################################
 # Copy custom test output file to binary location #
 ###################################################
-configure_file( CTestCustom.cmake ${PROJECT_BINARY_DIR}/CTestCustom.cmake )
+#configure_file( CTestCustom.cmake ${PROJECT_BINARY_DIR}/CTestCustom.cmake )
 
+add_subdirectory( cip )
+add_subdirectory( ports )
+add_subdirectory( enet_encap )
 add_subdirectory( utils )
 add_executable( OpENer_Tests OpENerTests.cpp )
 
-set( CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${CPPUTEST_HOME}/lib )
+find_library ( CPPUTEST_LIBRARY CppUTest ${CPPUTEST_HOME}/cpputest_build/lib )
+find_library ( CPPUTESTEXT_LIBRARY CppUTestExt ${CPPUTEST_HOME}/cpputest_build/lib )
 
-target_link_libraries( OpENer_Tests CppUTest CppUTestExt )
-target_link_libraries( OpENer_Tests UtilsTest Utils )
+target_link_libraries( OpENer_Tests CIP ENET_ENCAP PLATFORM_GENERIC SAMPLE_APP ${OpENer_PLATFORM}PLATFORM rt )
+
+target_link_libraries( OpENer_Tests gcov ${CPPUTEST_LIBRARY} ${CPPUTESTEXT_LIBRARY} )
+target_link_libraries( OpENer_Tests UtilsTest Utils ) 
+target_link_libraries( OpENer_Tests EthernetEncapsulationTest ENET_ENCAP )
+target_link_libraries( OpENer_Tests CipTest CIP )
+target_link_libraries( OpENer_Tests PortsTest PLATFORM_GENERIC )
 
 ########################################
 # Adds test to CTest environment       #
 ########################################
-add_test(OpENer_Tests ${EXECUTABLE_OUTPUT_PATH}/OpENer_Tests)
+add_test(OpENer_Tests ${EXECUTABLE_OUTPUT_PATH}/OpENer_Tests -v -c)

@@ -1,25 +1,26 @@
-/*
- * random.h
+/*******************************************************************************
+ * Copyright (c) 2017, Rockwell Automation, Inc.
+ * All rights reserved.
  *
- *  Created on: Dec 1, 2013
- *      Author: mmm
- */
+ ******************************************************************************/
 
-#ifndef RANDOM_H_
-#define RANDOM_H_
+#ifndef OPENER_RANDOM_H_
+#define OPENER_RANDOM_H_
 
 #include <stdint.h>
 
-typedef void (*setSeedfn)(uint32_t pa_nSeed);
-typedef uint32_t (*getNextUInt32fn)(void);
+typedef void (*SetSeed)(uint32_t seed);
+typedef uint32_t (*GetNextUInt32)(void);
 
-typedef struct
-{
-	uint32_t nXorShiftSeed; /**< Holds the current seed/random value */
-	setSeedfn setSeed; /**< Function pointer to setSeed function */
-	getNextUInt32fn getNextUInt32; /**< Function pointer to getNextUInt32 function */
+typedef struct {
+  uint32_t current_seed_value; /**< Holds the current seed/random value */
+  SetSeed set_seed; /**< Function pointer to SetSeed function */
+  GetNextUInt32 get_next_uint32; /**< Function pointer to GetNextUInt32 function */
 } Random;
 
-Random* random_new(setSeedfn, getNextUInt32fn);
+Random *RandomNew(SetSeed,
+                  GetNextUInt32);
 
-#endif /* RANDOM_H_ */
+void RandomDelete(Random **random);
+
+#endif /* OPENER_RANDOM_H_ */

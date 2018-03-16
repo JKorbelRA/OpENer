@@ -3,6 +3,12 @@
  * All rights reserved.
  *
  ******************************************************************************/
+#include "cipethernetlink.h"
 
-extern unsigned long *findNextEmptyParameterBlock(void);
-extern void writeParameter(unsigned long *data, int dataSize);
+EipStatus ConfigureNetworkInterface(const char *network_interface);
+
+void ConfigureDomainName(
+  );
+
+void ConfigureHostName(
+  );

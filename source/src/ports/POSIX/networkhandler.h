@@ -3,18 +3,45 @@
  * All rights reserved.
  *
  ******************************************************************************/
-#ifndef NETWORKHANDLER_H_
-#define NETWORKHANDLER_H_
+#ifndef OPENER_NETWORKHANDLER_H_
+#define OPENER_NETWORKHANDLER_H_
+
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
 
 #include "typedefs.h"
 
+#define OPENER_SOCKET_WOULD_BLOCK EWOULDBLOCK
 
-/*! Start a TCP/UDP listening socket, accept connections, receive data in select loop, call manageConnections periodically.
- *  @return status
- *          EIP_ERROR .. error
+/** @brief Executes platform dependent network handler initialization code
+ *
+ *      @return EipStatusOk if initialization was successful, otherwise EipStatusError
  */
-EIP_STATUS NetworkHandler_Init(void);
-EIP_STATUS NetworkHandler_ProcessOnce(void);
-EIP_STATUS NetworkHandler_Finish(void);
+EipStatus NetworkHandlerInitializePlatform(void);
 
-#endif /*NETWORKHANDLER_H_*/
+/** @brief Platform dependent code to close a socket
+ *
+ *  @param socket_handle The socket handle to be closed
+ */
+void CloseSocketPlatform(int socket_handle);
+
+int SetSocketToNonBlocking(int socket_handle);
+
+/** @brief This function shall return the current time in microseconds relative to epoch, and shall be implemented in a port specific networkhandler
+ *
+ *  @return Current time relative to epoch as MicroSeconds
+ */
+MicroSeconds GetMicroSeconds(void);
+
+/** @brief This function shall return the current time in milliseconds relative to epoch, and shall be implemented in a port specific networkhandler
+ *
+ *  @return Current time relative to epoch as MilliSeconds
+ */
+MilliSeconds GetMilliSeconds(void);
+
+int SetQosOnSocket(int socket,
+                   CipUsint qos_value);
+
+#endif /* OPENER_NETWORKHANDLER_H_ */

@@ -1,79 +1,96 @@
 /*******************************************************************************
  * Copyright (c) 2009, Rockwell Automation, Inc.
- * All rights reserved. 
+ * All rights reserved.
  *
  ******************************************************************************/
-#ifndef ENCAP_H_
-#define ENCAP_H_
+#ifndef OPENER_ENCAP_H_
+#define OPENER_ENCAP_H_
 
 #include "typedefs.h"
+#include "cipconnectionobject.h"
 
+/** @file encap.h
+ * @brief This file contains the public interface of the encapsulation layer
+ */
 
-/**  \defgroup ENCAP OpENer Ethernet encapsulation layer
+/**  @defgroup ENCAP OpENer Ethernet encapsulation layer
  * The Ethernet encapsulation layer handles provides the abstraction between the Ethernet and the CIP layer.
  */
 
 /*** defines ***/
 
-#define ENCAPSULATION_HEADER_LENGTH 24
-#define OPENER_ETHERNET_PORT 0xAF12
+#define ENCAPSULATION_HEADER_LENGTH     24
 
-/* definition of status codes in encapsulation protocol */
-#define OPENER_ENCAP_STATUS_SUCCESS                     0x0000
-#define OPENER_ENCAP_STATUS_INVALID_COMMAND             0x0001
-#define OPENER_ENCAP_STATUS_INSUFFICIENT_MEM            0x0002
-#define OPENER_ENCAP_STATUS_INCORRECT_DATA              0x0003
-#define OPENER_ENCAP_STATUS_INVALID_SESSION_HANDLE      0x0064
-#define OPENER_ENCAP_STATUS_INVALID_LENGTH              0x0065
-#define OPENER_ENCAP_STATUS_UNSUPPORTED_PROTOCOL        0x0069
+/** @brief Ethernet/IP standard port */
+static const int kOpenerEthernetPort = 0xAF12;
 
+/** @brief definition of status codes in encapsulation protocol
+ * All other codes are either legacy codes, or reserved for future use
+ *  */
+typedef enum {
+  kEncapsulationProtocolSuccess = 0x0000,
+  kEncapsulationProtocolInvalidCommand = 0x0001,
+  kEncapsulationProtocolInsufficientMemory = 0x0002,
+  kEncapsulationProtocolIncorrectData = 0x0003,
+  kEncapsulationProtocolInvalidSessionHandle = 0x0064,
+  kEncapsulationProtocolInvalidLength = 0x0065,
+  kEncapsulationProtocolUnsupportedProtocol = 0x0069
+} EncapsulationProtocolErrorCode;
 
 /*** structs ***/
-struct S_Encapsulation_Data
-  {
-    EIP_UINT16 nCommand_code;
-    EIP_UINT16 nData_length;
-    EIP_UINT32 nSession_handle;
-    EIP_UINT32 nStatus;
-    /* The sender context is not needed any more with the new minimum data copy design */
-    /* EIP_UINT8 anSender_context[SENDER_CONTEXT_SIZE];  */
-    EIP_UINT32 nOptions;
-    EIP_UINT8 *m_acCommBufferStart;       /*Pointer to the communication buffer used for this message */
-    EIP_UINT8 *m_acCurrentCommBufferPos;  /*The current position in the communication buffer during the decoding process */
-  };
+typedef struct encapsulation_data {
+  CipUint command_code;
+  CipUint data_length;
+  CipUdint session_handle;
+  CipUdint status;
+  CipOctet sender_context[8]; /**< length of 8, according to the specification */
+  CipUdint options;
+  EipUint8 *communication_buffer_start; /**< Pointer to the communication buffer used for this message */
+  EipUint8 *current_communication_buffer_position; /**< The current position in the communication buffer during the decoding process */
+} EncapsulationData;
 
-struct S_Encapsulation_Interface_Information
-  {
-    EIP_UINT16 TypeCode;
-    EIP_UINT16 Length;
-    EIP_UINT16 EncapsulationProtocolVersion;
-    EIP_UINT16 CapabilityFlags;
-    EIP_INT8 NameofService[16];
-  };
+typedef struct encapsulation_interface_information {
+  EipUint16 type_code;
+  EipUint16 length;
+  EipUint16 encapsulation_protocol_version;
+  EipUint16 capability_flags;
+  EipInt8 name_of_service[16];
+} EncapsulationInterfaceInformation;
 
 /*** global variables (public) ***/
 
 /*** public functions ***/
-/*! \ingroup ENCAP 
- * \brief Initialize the encapsulation layer.
+/** @ingroup ENCAP
+ * @brief Initialize the encapsulation layer.
  */
-void encapInit(void);
+void EncapsulationInit(void);
 
-/*! \ingroup ENCAP
- * \brief Shutdown the encapsulation layer.
+/** @ingroup ENCAP
+ * @brief Shutdown the encapsulation layer.
  *
  * This means that all open sessions including their sockets are closed.
  */
-void encapShutDown(void);
+void EncapsulationShutDown(void);
 
-
-/*! \ingroup ENCAP
- * \brief Handle delayed encapsulation message responses
+/** @ingroup ENCAP
+ * @brief Handle delayed encapsulation message responses
  *
  * Certain encapsulation message requests require a delayed sending of the response
  * message. This functions checks if messages need to be sent and performs the
  * sending.
  */
-void manageEncapsulationMessages();
+void ManageEncapsulationMessages(const MilliSeconds elapsed_time);
 
-#endif /*ENCAP_H_*/
+size_t GetSessionFromSocket(const int socket_handle);
+
+void RemoveSession(const int socket);
+
+void CloseSessionBySessionHandle(
+  const CipConnectionObject *const connection_object);
+
+void CloseEncapsulationSessionBySockAddr(
+  const CipConnectionObject *const connection_object);
+
+void CloseClass3ConnectionBasedOnSession(size_t encapsulation_session_handle);
+
+#endif /* OPENER_ENCAP_H_ */
